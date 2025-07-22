@@ -18,5 +18,5 @@ variable "instance_type" {
 
 variable "key_name" {
   description = "Name of the AWS key pair for SSH access"
-  default     = "ansible"
+  default     = "ec2-instance"
 }
