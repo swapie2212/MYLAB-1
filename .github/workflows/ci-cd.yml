@@ -9,7 +9,8 @@ jobs:
   provision-infra:
     runs-on: ubuntu-latest
     outputs:
-      INSTANCE_IP: ${{ steps.get_ip.outputs.INSTANCE_IP }}
+      instance_ip: ${{ steps.get_ip.outputs.instance_ip }}
+
     steps:
       - name: Checkout
         uses: actions/checkout@v3
@@ -19,21 +20,21 @@ jobs:
 
       - name: Terraform Init & Apply
         run: |
-          cd infra/terraform
           terraform init
           terraform apply -auto-approve
+        working-directory: infra/terraform
         env:
           TF_VAR_aws_access_key: ${{ secrets.AWS_ACCESS_KEY_ID }}
           TF_VAR_aws_secret_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           TF_VAR_region: ${{ secrets.AWS_REGION }}
-          TF_VAR_key_name: ${{ secrets.TF_VAR_key_name }}
-      
+          TF_VAR_key_name: ${{ secrets.KEY_NAME }}
+
       - name: Get EC2 Public IP
         id: get_ip
+        working-directory: infra/terraform
         run: |
-          cd infra/terraform
-          echo "INSTANCE_IP=$(terraform output -raw instance_ip)" >> $GITHUB_OUTPUT
-    
+          echo "instance_ip=$(terraform output -raw instance_ip)" >> $GITHUB_OUTPUT
+
   configure-node:
     needs: provision-infra
     runs-on: ubuntu-latest
@@ -44,7 +45,7 @@ jobs:
       - name: Generate Ansible Inventory with EC2 IP
         run: |
           echo "[devops_node]" > infra/ansible/inventory.ini
-          echo "${{ needs.provision-infra.outputs.INSTANCE_IP }} ansible_user=ubuntu ansible_ssh_private_key_file=infra/terraform/ansible.pem" >> infra/ansible/inventory.ini
+          echo "${{ needs.provision-infra.outputs.instance_ip }} ansible_user=ubuntu ansible_ssh_private_key_file=infra/terraform/ec2-instance.pem" >> infra/ansible/inventory.ini
 
       - name: Install Ansible
         run: |
