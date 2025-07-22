@@ -1,0 +1,27 @@
+- name: Wait until backend metrics endpoint is up
+  uri:
+    url: http://localhost:4000/metrics
+    status_code: 200
+    timeout: 30
+    validate_certs: no
+  register: result
+  until: result.status == 200
+  retries: 5
+  delay: 10
+
+- name: Create Prometheus config directory
+  file:
+    path: /etc/prometheus
+    state: directory
+
+- name: Copy Prometheus config
+  copy:
+    src: ../../../../prometheus/prometheus.yml
+    dest: /etc/prometheus/prometheus.yml
+
+- name: Run Prometheus container
+  shell: |
+    docker run -d \
+      -p 9090:9090 \
+      -v /etc/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml \
+      --name prometheus-server prom/prometheus

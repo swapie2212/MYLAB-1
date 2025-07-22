@@ -1,0 +1,30 @@
+- name: Create app folder to store deployment files
+  file:
+    path: /home/ubuntu/app
+    state: directory
+    owner: ubuntu
+    group: ubuntu
+    mode: '0755'
+
+- name: Copy Kubernetes deployment files
+  copy:
+    src: ../../../../../k8s/
+    dest: /home/ubuntu/app/
+    owner: ubuntu
+    group: ubuntu
+    mode: '0644'
+
+- name: Apply Backend Deployment
+  shell: kubectl apply -f /home/ubuntu/app/backend-deployment.yaml
+  args:
+    executable: /bin/bash
+
+- name: Apply Frontend Deployment
+  shell: kubectl apply -f /home/ubuntu/app/frontend-deployment.yaml
+  args:
+    executable: /bin/bash
+
+- name: Apply Service Config
+  shell: kubectl apply -f /home/ubuntu/app/service.yaml
+  args:
+    executable: /bin/bash

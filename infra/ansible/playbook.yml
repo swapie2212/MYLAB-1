@@ -1,0 +1,9 @@
+- name: Setup Minikube DevOps Node
+  hosts: devops_node
+  become: yes
+  roles:
+    - docker
+    - kubectl
+    - minikube
+    - k8s_deploy
+    - prometheus

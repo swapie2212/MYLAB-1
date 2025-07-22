@@ -1,0 +1,11 @@
+- name: Download Minikube binary
+  get_url:
+    url: https://storage.googleapis.com/minikube/releases/latest/minikube-linux-amd64
+    dest: /usr/local/bin/minikube
+    mode: '0755'
+
+- name: Start Minikube
+  shell: |
+    minikube start --driver=none
+  args:
+    executable: /bin/bash

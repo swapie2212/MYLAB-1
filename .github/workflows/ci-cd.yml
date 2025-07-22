@@ -1,4 +1,4 @@
-name: Node CI/CD
+name: Node DevOps CI/CD
 
 on:
   push:
@@ -6,37 +6,48 @@ on:
       - devops
 
 jobs:
-  build:
+  provision-infra:
+    runs-on: ubuntu-latest
+    outputs:
+      INSTANCE_IP: ${{ steps.get_ip.outputs.INSTANCE_IP }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Terraform Init & Apply
+        run: |
+          cd infra/terraform
+          terraform init
+          terraform apply -auto-approve
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_REGION: ${{ secrets.AWS_REGION }}
+          TF_VAR_key_name: ${{ secrets.TF_VAR_key_name }}
+      
+      - name: Get EC2 Public IP
+        id: get_ip
+        run: |
+          cd infra/terraform
+          echo "INSTANCE_IP=$(terraform output -raw instance_ip)" >> $GITHUB_OUTPUT
+    
+  configure-node:
+    needs: provision-infra
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v3
-      
-      - name: Build Backend
-        run: |
-          cd backend
-          npm install
-          npm test
-      
-      - name: Build Frontend
-        run: |
-          cd frontend
-          npm install
-      
-      - name: Log in to DockerHub
-        uses: docker/login-action@v3
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Build and Push Backend Image
+      - name: Generate Ansible Inventory with EC2 IP
         run: |
-          cd backend
-          docker build -t ${{ secrets.DOCKERHUB_USERNAME }}/node-devops-backend:latest .
-          docker push ${{ secrets.DOCKERHUB_USERNAME }}/node-devops-backend:latest
+          echo "[devops_node]" > infra/ansible/inventory.ini
+          echo "${{ needs.provision-infra.outputs.INSTANCE_IP }} ansible_user=ubuntu ansible_ssh_private_key_file=infra/terraform/ansible.pem" >> infra/ansible/inventory.ini
 
-      - name: Build and Push Frontend Image
+      - name: Install Ansible
         run: |
-          cd frontend
-          docker build -t ${{ secrets.DOCKERHUB_USERNAME }}/node-devops-frontend:latest .
-          docker push ${{ secrets.DOCKERHUB_USERNAME }}/node-devops-frontend:latest
+          sudo apt update
+          sudo apt install -y ansible
+
+      - name: Run Ansible Playbook
+        run: |
+          ansible-playbook -i infra/ansible/inventory.ini infra/ansible/playbook.yml
