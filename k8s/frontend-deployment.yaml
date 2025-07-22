@@ -14,6 +14,6 @@ spec:
     spec:
       containers:
         - name: frontend
-          image: node-devops-frontend:latest
+          image: swapie2212/node-devops-frontend:latest
           ports:
             - containerPort: 80
