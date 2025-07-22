@@ -22,3 +22,18 @@ jobs:
         run: |
           cd frontend
           npm install
+      
+      - name: Log in to DockerHub
+        run: echo "${{ secrets.DOCKERHUB_TOKEN }}" | docker login -u "${{ secrets.DOCKERHUB_USERNAME }}" --password-stdin
+
+      - name: Build and Push Backend Image
+        run: |
+          cd backend
+          docker build -t ${{ secrets.DOCKERHUB_USERNAME }}/node-devops-backend:latest .
+          docker push ${{ secrets.DOCKERHUB_USERNAME }}/node-devops-backend:latest
+
+      - name: Build and Push Frontend Image
+        run: |
+          cd frontend
+          docker build -t ${{ secrets.DOCKERHUB_USERNAME }}/node-devops-frontend:latest .
+          docker push ${{ secrets.DOCKERHUB_USERNAME }}/node-devops-frontend:latest
