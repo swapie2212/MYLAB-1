@@ -21,6 +21,30 @@
     mode: '0755'
     state: file
 
+- name: Install cri-dockerd dependencies
+  apt:
+    name:
+      - git
+      - golang
+      - make
+      - cmake
+    state: present
+    update_cache: yes
+- name: Clone cri-dockerd source
+  git:
+    repo: https://github.com/Mirantis/cri-dockerd.git
+    dest: /tmp/cri-dockerd
+    version: "main"
+
+- name: Build cri-dockerd binary
+  shell: |
+    mkdir -p /tmp/cri-dockerd/bin
+    cd /tmp/cri-dockerd
+    make cri-dockerd
+    cp ./cri-dockerd /usr/local/bin/
+  args:
+    executable: /bin/bash
+
 - name: Start Minikube with none driver
   shell: |
     minikube start --driver=none
