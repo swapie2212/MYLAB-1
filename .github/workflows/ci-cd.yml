@@ -65,7 +65,7 @@ jobs:
       - name: Generate Ansible Inventory with EC2 IP
         run: |
           echo "[devops_node]" > infra/ansible/inventory.ini
-          echo "${{ needs.provision-infra.outputs.instance_ip }} ansible_user=ubuntu ansible_ssh_private_key_file=infra/terraform/ec2-instance.pem" >> infra/ansible/inventory.ini
+          echo "${{ needs.provision-infra.outputs.instance_ip }} ansible_user=ubuntu ansible_ssh_private_key_file=infra/terraform/ec2-instance.pem ansible_ssh_common_args='-o StrictHostKeyChecking=no'" >> infra/ansible/inventory.ini
 
       - name: Install Ansible
         run: |
