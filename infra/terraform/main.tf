@@ -1,7 +1,7 @@
 terraform {
   backend "s3" {
     bucket         = "mylab-statefile-bucket"   # ✅ Replace with your actual bucket name
-    key            = "mylab/terraform.tfstate"       # ✅ Path within the bucket
+    key            = "mylab/terraform.tfstate" 
     region         = "ap-south-1"                     # ✅ Region of your S3 bucket
      }
 
