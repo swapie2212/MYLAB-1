@@ -4,6 +4,12 @@
     state: present
     update_cache: yes
 
+- name: Install socat (required for kubectl port-forward)
+  apt:
+    name: socat
+    state: present
+    update_cache: yes
+
 - name: Install crictl (required by Kubernetes)
   get_url:
     url: https://github.com/kubernetes-sigs/cri-tools/releases/download/v1.29.0/crictl-v1.29.0-linux-amd64.tar.gz
