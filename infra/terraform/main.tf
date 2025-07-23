@@ -2,7 +2,7 @@ terraform {
   backend "s3" {
     bucket         = "mylab-statefile-bucket"   # ✅ Replace with your actual bucket name
     key            = "mylab/terraform.tfstate" 
-    region         = "ap-south-1"                     # ✅ Region of your S3 bucket
+    region         = "ap-south-1"  
      }
 
   required_providers {
