@@ -62,6 +62,12 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v3
 
+      - name: Write PEM key from secret
+        run: |
+          mkdir -p infra/terraform
+          echo "${{ secrets.EC2_PRIVATE_KEY }}" > infra/terraform/ec2-instance.pem
+          chmod 600 infra/terraform/ec2-instance.pem
+
       - name: Generate Ansible Inventory with EC2 IP
         run: |
           echo "[devops_node]" > infra/ansible/inventory.ini
