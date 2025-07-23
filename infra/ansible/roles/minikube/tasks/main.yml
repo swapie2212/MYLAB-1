@@ -1,17 +1,22 @@
-- name: Install conntrack (required by Kubernetes 1.33+)
+- name: Install conntrack (required by Kubernetes)
   apt:
     name: conntrack
     state: present
     update_cache: yes
 
-- name: Download Minikube binary
+- name: Install crictl (required by Kubernetes)
   get_url:
-    url: https://storage.googleapis.com/minikube/releases/latest/minikube-linux-amd64
-    dest: /usr/local/bin/minikube
-    mode: '0755'
+    url: https://github.com/kubernetes-sigs/cri-tools/releases/download/v1.29.0/crictl-v1.29.0-linux-amd64.tar.gz
+    dest: /tmp/crictl.tar.gz
 
-- name: Start Minikube
-  shell: |
-    minikube start --driver=none
-  args:
-    executable: /bin/bash
+- name: Extract crictl binary
+  unarchive:
+    src: /tmp/crictl.tar.gz
+    dest: /usr/local/bin/
+    remote_src: yes
+
+- name: Set executable permissions for crictl
+  file:
+    path: /usr/local/bin/crictl
+    mode: '0755'
+    state: file
