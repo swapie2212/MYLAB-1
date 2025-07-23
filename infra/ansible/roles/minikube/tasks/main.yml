@@ -46,6 +46,14 @@
   args:
     executable: /bin/bash
 
+- name: Disable fs.protected_regular to allow Minikube lock file
+  sysctl:
+    name: fs.protected_regular
+    value: 0
+    state: present
+    sysctl_set: yes
+    reload: yes
+
 - name: Start Minikube with none driver
   shell: |
     minikube start --driver=none
