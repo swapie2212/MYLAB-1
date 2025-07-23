@@ -20,3 +20,22 @@
     path: /usr/local/bin/crictl
     mode: '0755'
     state: file
+
+- name: Start Minikube with none driver
+  shell: |
+    minikube start --driver=none
+    minikube update-context
+  environment:
+    CHANGE_MINIKUBE_NONE_USER: "true"
+  args:
+    executable: /bin/bash
+
+- name: Wait for Kubernetes API to become available
+  shell: |
+    for i in {1..10}; do
+      kubectl get nodes && break
+      echo "Waiting for Kubernetes to be ready..."
+      sleep 10
+    done
+  args:
+    executable: /bin/bash
