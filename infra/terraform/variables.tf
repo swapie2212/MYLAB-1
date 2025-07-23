@@ -3,14 +3,6 @@ variable "region" {
   description = "AWS region to deploy infrastructure"
 }
 
-variable "aws_access_key" {
-  description = "AWS access key"
-}
-
-variable "aws_secret_key" {
-  description = "AWS secret key"
-}
-
 variable "instance_type" {
   default     = "t3.large"
   description = "EC2 instance type for Kubernetes host"
