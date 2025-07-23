@@ -1,3 +1,9 @@
+- name: Install conntrack (required by Kubernetes 1.33+)
+  apt:
+    name: conntrack
+    state: present
+    update_cache: yes
+
 - name: Download Minikube binary
   get_url:
     url: https://storage.googleapis.com/minikube/releases/latest/minikube-linux-amd64
