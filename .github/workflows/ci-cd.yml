@@ -39,7 +39,7 @@ jobs:
         run: |
           set -e
           terraform_output=$(terraform output -raw instance_ip 2>/dev/null || echo "")
-          terraform_output=$(echo "$terraform_output" | tr -d '"[:space:]"')
+          terraform_output=$(echo "$terraform_output" | tr -d '"[:space:]') 
           echo "Terraform raw output: '$terraform_output'"
           if [[ "$terraform_output" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
             echo "instance_ip=$terraform_output" >> $GITHUB_OUTPUT
