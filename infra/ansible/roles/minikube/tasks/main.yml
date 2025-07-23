@@ -48,11 +48,13 @@
 
 - name: Install cri-dockerd systemd services
   copy:
-    src: "{{ item }}"
-    dest: "/etc/systemd/system/{{ item | basename }}"
-  with_items:
-    - /tmp/cri-dockerd/packaging/systemd/cri-docker.service
-    - /tmp/cri-dockerd/packaging/systemd/cri-docker.socket
+    src: "/tmp/cri-dockerd/packaging/systemd/{{ item }}"
+    dest: "/etc/systemd/system/{{ item }}"
+    remote_src: yes
+  loop:
+    - cri-docker.service
+    - cri-docker.socket
+
 
 - name: Reload systemd daemon
   systemd:
