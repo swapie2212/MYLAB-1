@@ -37,14 +37,22 @@
     dest: /tmp/cri-dockerd
     version: "master"
 
+- name: Stop cri-docker services before overwrite (ignore errors if not running)
+  shell: |
+    systemctl stop cri-docker.service || true
+    systemctl stop cri-docker.socket || true
+  ignore_errors: yes
+  become: yes
+
 - name: Build cri-dockerd binary
   shell: |
     mkdir -p /tmp/cri-dockerd/bin
     cd /tmp/cri-dockerd
     make cri-dockerd
-    cp ./cri-dockerd /usr/local/bin/
+    cp -f ./cri-dockerd /usr/local/bin/
   args:
     executable: /bin/bash
+  become: yes
 
 - name: Install cri-dockerd systemd services
   copy:
@@ -54,7 +62,6 @@
   loop:
     - cri-docker.service
     - cri-docker.socket
-
 
 - name: Reload systemd daemon
   systemd:
