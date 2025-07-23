@@ -34,7 +34,6 @@ jobs:
         working-directory: infra/terraform  
         run: |
           set -e
-          cd infra/terraform
           terraform_output=$(terraform output -raw instance_ip 2>/dev/null || echo "")
           if [ -z "$terraform_output" ]; then
             echo "No valid output from Terraform. Skipping."
