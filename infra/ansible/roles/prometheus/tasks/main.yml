@@ -1,13 +1,20 @@
 - name: Wait until backend metrics endpoint is up
-  uri:
-    url: http://localhost:4000/metrics
-    status_code: 200
-    timeout: 30
-    validate_certs: no
-  register: result
-  until: result.status == 200
-  retries: 5
-  delay: 10
+  shell: |
+    kubectl port-forward svc/backend 4000:4000 &
+    PORT_FORWARD_PID=$!
+    for i in {1..10}; do
+      if curl -sSf http://localhost:4000/metrics; then
+        kill $PORT_FORWARD_PID
+        exit 0
+      fi
+      echo "Waiting for /metrics to be ready..."
+      sleep 5
+    done
+    kill $PORT_FORWARD_PID
+    echo "Timeout waiting for metrics endpoint"
+    exit 1
+  args:
+    executable: /bin/bash
 
 - name: Create Prometheus config directory
   file:
@@ -21,7 +28,10 @@
 
 - name: Run Prometheus container
   shell: |
+    docker rm -f prometheus-server || true
     docker run -d \
       -p 9090:9090 \
       -v /etc/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml \
       --name prometheus-server prom/prometheus
+  args:
+    executable: /bin/bash
