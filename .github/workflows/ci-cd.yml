@@ -38,15 +38,18 @@ jobs:
         working-directory: infra/terraform  
         run: |
           set -e
-          terraform_output=$(terraform output -raw instance_ip 2>/dev/null || echo "")
+          echo "Using Terraform binary at: $(which terraform)"
+          terraform version
+          terraform_output=$(command terraform output -raw instance_ip 2>/dev/null || echo "")
           terraform_output=$(echo "$terraform_output" | tr -d '"[:space:]')
-          echo "Terraform raw output: '$terraform_output'"
+          echo "Sanitized IP: '$terraform_output'"
           if [[ "$terraform_output" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
             echo "instance_ip=$terraform_output" >> $GITHUB_OUTPUT
           else
             echo "Invalid IP or Terraform output failed. Skipping export."
             exit 1
           fi
+          
 
   configure-node:
     needs: provision-infra
