@@ -30,11 +30,12 @@
       - cmake
     state: present
     update_cache: yes
+    
 - name: Clone cri-dockerd source
   git:
     repo: https://github.com/Mirantis/cri-dockerd.git
     dest: /tmp/cri-dockerd
-    version: "main"
+    version: "master"
 
 - name: Build cri-dockerd binary
   shell: |
