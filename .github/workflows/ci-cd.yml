@@ -34,14 +34,14 @@ jobs:
         working-directory: infra/terraform  
         run: |
           set -e
-          terraform_output=$(terraform output -raw instance_ip 2>/dev/null || echo "")
+          terraform_output=$(terraform output -raw instance_ip 2>/dev/null | tr -d '"[:space:]')
           if [[ "$terraform_output" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
             echo "INSTANCE_IP=$terraform_output" >> $GITHUB_OUTPUT
           else
             echo "Invalid IP or Terraform output failed. Skipping export."
             exit 1
           fi
-          
+
   configure-node:
     needs: provision-infra
     runs-on: ubuntu-latest
