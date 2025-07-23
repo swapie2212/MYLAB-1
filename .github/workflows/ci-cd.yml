@@ -33,7 +33,8 @@ jobs:
         id: get_ip
         working-directory: infra/terraform
         run: |
-          echo "instance_ip=$(terraform output -raw instance_ip)" >> $GITHUB_OUTPUT
+          instance_ip=$(terraform output -raw instance_ip)
+          echo "instance_ip=$instance_ip" >> $GITHUB_OUTPUT
 
   configure-node:
     needs: provision-infra

@@ -1,7 +1,9 @@
 terraform {
-  backend "local" {
-    path = "terraform.tfstate"
-  }
+  backend "s3" {
+    bucket         = "mylab-statefile-bucket"   # ✅ Replace with your actual bucket name
+    key            = "mylab/terraform.tfstate"       # ✅ Path within the bucket
+    region         = "ap-south-1"                     # ✅ Region of your S3 bucket
+     }
 
   required_providers {
     aws = {
@@ -10,6 +12,7 @@ terraform {
     }
   }
 }
+
 
 resource "aws_instance" "devops_node" {
   ami           = "ami-0f918f7e67a3323f0"
