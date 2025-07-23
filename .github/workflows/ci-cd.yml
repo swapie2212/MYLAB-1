@@ -34,12 +34,13 @@ jobs:
         working-directory: infra/terraform  
         run: |
           set -e
-          instance_ip=$(terraform output -raw instance_ip 2>/dev/null || true)
-          if [ -z "$instance_ip" ]; then
-            echo "Terraform output failed or empty. Skipping output."
+          cd infra/terraform
+          terraform_output=$(terraform output -raw instance_ip 2>/dev/null || echo "")
+          if [ -z "$terraform_output" ]; then
+            echo "No valid output from Terraform. Skipping."
             exit 1
           fi
-          echo "instance_ip=$instance_ip" >> "$GITHUB_OUTPUT"
+          echo "INSTANCE_IP=$terraform_output" >> $GITHUB_OUTPUT
 
   configure-node:
     needs: provision-infra
