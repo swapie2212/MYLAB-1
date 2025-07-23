@@ -77,7 +77,7 @@ jobs:
         run: |
           sudo apt update
           sudo apt install -y ansible
-
+      
       - name: Run Ansible Playbook
         run: |
           ansible-playbook -i infra/ansible/inventory.ini infra/ansible/playbook.yml
