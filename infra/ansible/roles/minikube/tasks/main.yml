@@ -37,19 +37,24 @@
     dest: /tmp/cri-dockerd
     version: "master"
 
-- name: Stop cri-docker services before overwrite (ignore errors if not running)
+- name: Stop cri-docker services before overwriting binary
   shell: |
     systemctl stop cri-docker.service || true
     systemctl stop cri-docker.socket || true
   ignore_errors: yes
   become: yes
 
+- name: Remove existing cri-dockerd binary if exists
+  file:
+    path: /usr/local/bin/cri-dockerd
+    state: absent
+  become: yes
+
 - name: Build cri-dockerd binary
   shell: |
-    mkdir -p /tmp/cri-dockerd/bin
     cd /tmp/cri-dockerd
     make cri-dockerd
-    cp -f ./cri-dockerd /usr/local/bin/
+    install -m 0755 ./cri-dockerd /usr/local/bin/cri-dockerd
   args:
     executable: /bin/bash
   become: yes
