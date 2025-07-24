@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - sandbox
+  workflow_dispatch:
 
 jobs:
 
@@ -73,6 +74,7 @@ jobs:
 
       - name: Generate Ansible Inventory
         run: |
+          mkdir -p infra/ansible
           echo "[devops_node]" > infra/ansible/inventory.ini
           echo "${{ needs.provision-infra.outputs.instance_ip }} ansible_user=ubuntu ansible_ssh_private_key_file=${{ env.PEM_ABS_PATH }} ansible_ssh_common_args='-o StrictHostKeyChecking=no'" >> infra/ansible/inventory.ini
 
@@ -91,6 +93,12 @@ jobs:
       - name: Run Ansible Playbook (Docker only)
         run: ansible-playbook -i infra/ansible/inventory.ini infra/ansible/playbook.yml --tags docker
 
+      - name: Upload Ansible Inventory
+        uses: actions/upload-artifact@v4
+        with:
+          name: ansible-inventory
+          path: infra/ansible/inventory.ini
+
   install-k8s:
     name: Setup Minikube & kubectl
     needs: setup-node
@@ -98,6 +106,12 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v3
+
+      - name: Download Ansible Inventory
+        uses: actions/download-artifact@v4
+        with:
+          name: ansible-inventory
+          path: infra/ansible
 
       - name: Install Ansible
         run: sudo apt update && sudo apt install -y ansible
@@ -122,6 +136,12 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v3
 
+      - name: Download Ansible Inventory
+        uses: actions/download-artifact@v4
+        with:
+          name: ansible-inventory
+          path: infra/ansible
+
       - name: Install Ansible
         run: sudo apt update && sudo apt install -y ansible
 
@@ -144,6 +164,12 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v3
+
+      - name: Download Ansible Inventory
+        uses: actions/download-artifact@v4
+        with:
+          name: ansible-inventory
+          path: infra/ansible
 
       - name: Install Ansible
         run: sudo apt update && sudo apt install -y ansible
