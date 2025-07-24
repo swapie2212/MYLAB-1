@@ -1,3 +1,9 @@
+- name: Wait for backend pod to be ready
+  shell: |
+    kubectl wait --for=condition=ready pod -l app=backend --timeout=90s
+  args:
+    executable: /bin/bash
+
 - name: Wait until backend metrics endpoint is up
   shell: |
     kubectl port-forward svc/backend 4000:4000 &
