@@ -122,12 +122,22 @@
     dest: /opt/cni/bin/
     remote_src: yes
 
+- name: Download minikube
+  get_url:
+    url: https://storage.googleapis.com/minikube/releases/latest/minikube-linux-amd64
+    dest: /usr/local/bin/minikube
+    mode: '0755'
+
+- name: Verify minikube installation
+  command: minikube version
+
 - name: Start Minikube with none driver
   shell: |
-    minikube start --driver=none --container-runtime=docker --network-plugin=cni
-    minikube update-context
+    /usr/local/bin/minikube start --driver=none --container-runtime=docker --network-plugin=cni
+    /usr/local/bin/minikube update-context
   environment:
     CHANGE_MINIKUBE_NONE_USER: "true"
+    PATH: "/usr/local/bin:{{ ansible_env.PATH }}"
   args:
     executable: /bin/bash
 
