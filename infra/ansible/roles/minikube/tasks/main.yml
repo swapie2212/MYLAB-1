@@ -65,6 +65,13 @@
     executable: /bin/bash
   become: yes
 
+- name: Symlink cri-dockerd to /usr/bin
+  file:
+    src: /usr/local/bin/cri-dockerd
+    dest: /usr/bin/cri-dockerd
+    state: link
+  become: yes
+
 - name: Install cri-dockerd systemd services
   copy:
     src: "/tmp/cri-dockerd/packaging/systemd/{{ item }}"
