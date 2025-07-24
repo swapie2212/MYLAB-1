@@ -11,6 +11,7 @@ spec:
       port: 4000
       targetPort: 4000
   type: ClusterIP
+
 ---
 apiVersion: v1
 kind: Service
@@ -19,8 +20,9 @@ metadata:
 spec:
   selector:
     app: frontend
+  type: NodePort
   ports:
     - protocol: TCP
       port: 80
       targetPort: 80
-  type: LoadBalancer
+      nodePort: 31534  # You can omit this to let K8s auto-assign
