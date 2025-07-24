@@ -3,14 +3,14 @@ name: Node DevOps CI/CD
 on:
   push:
     branches:
-      - devops
+      - sandbox
 
 jobs:
+
   provision-infra:
     runs-on: ubuntu-latest
     outputs:
       instance_ip: ${{ steps.get_ip.outputs.instance_ip }}
-
     steps:
       - name: Checkout
         uses: actions/checkout@v3
@@ -24,9 +24,9 @@ jobs:
 
       - name: Install Terraform
         run: |
-          sudo apt-get update && sudo apt-get install -y gnupg software-properties-common curl
-          curl -fsSL https://apt.releases.hashicorp.com/gpg | sudo gpg --dearmor -o /usr/share/keyrings/hashicorp-archive-keyring.gpg
-          echo "deb [signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] https://apt.releases.hashicorp.com $(lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/hashicorp.list
+          sudo apt-get update && sudo apt-get install -y gnupg curl software-properties-common
+          curl -fsSL https://apt.releases.hashicorp.com/gpg | sudo gpg --dearmor -o /usr/share/keyrings/hashicorp.gpg
+          echo "deb [signed-by=/usr/share/keyrings/hashicorp.gpg] https://apt.releases.hashicorp.com $(lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/hashicorp.list
           sudo apt-get update && sudo apt-get install terraform -y
 
       - name: Terraform Init & Apply
@@ -39,23 +39,12 @@ jobs:
 
       - name: Get EC2 Public IP
         id: get_ip
-        working-directory: infra/terraform  
+        working-directory: infra/terraform
         run: |
-          set -e
-          echo "Using Terraform binary at: $(which terraform)"
-          terraform version
-          terraform_output=$(command terraform output -raw instance_ip 2>/dev/null || echo "")
-          terraform_output=$(echo "$terraform_output" | tr -d '"[:space:]')
-          echo "Sanitized IP: '$terraform_output'"
-          if [[ "$terraform_output" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-            echo "instance_ip=$terraform_output" >> $GITHUB_OUTPUT
-          else
-            echo "Invalid IP or Terraform output failed. Skipping export."
-            exit 1
-          fi
-          
+          terraform_output=$(terraform output -raw instance_ip || echo '')
+          echo "instance_ip=$(echo $terraform_output | tr -d '[:space:]')" >> $GITHUB_OUTPUT
 
-  configure-node:
+  setup-node:
     needs: provision-infra
     runs-on: ubuntu-latest
     steps:
@@ -68,16 +57,51 @@ jobs:
           echo "${{ secrets.EC2_PRIVATE_KEY }}" > infra/terraform/ec2-instance.pem
           chmod 600 infra/terraform/ec2-instance.pem
 
-      - name: Generate Ansible Inventory with EC2 IP
+      - name: Generate Ansible Inventory
         run: |
           echo "[devops_node]" > infra/ansible/inventory.ini
           echo "${{ needs.provision-infra.outputs.instance_ip }} ansible_user=ubuntu ansible_ssh_private_key_file=infra/terraform/ec2-instance.pem ansible_ssh_common_args='-o StrictHostKeyChecking=no'" >> infra/ansible/inventory.ini
 
       - name: Install Ansible
         run: |
-          sudo apt update
-          sudo apt install -y ansible
-      
-      - name: Run Ansible Playbook
+          sudo apt update && sudo apt install -y ansible
+
+      - name: Run Ansible Playbook (Docker only)
         run: |
-          ansible-playbook -i infra/ansible/inventory.ini infra/ansible/playbook.yml
+          ansible-playbook -i infra/ansible/inventory.ini infra/ansible/playbook.yml --tags docker
+
+  install-k8s:
+    needs: setup-node
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+      - name: Install Ansible
+        run: sudo apt update && sudo apt install -y ansible
+      - name: Run Ansible (kubectl & minikube)
+        run: |
+          ansible-playbook -i infra/ansible/inventory.ini infra/ansible/playbook.yml --tags kubectl,minikube
+
+  deploy-app:
+    needs: install-k8s
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+      - name: Install Ansible
+        run: sudo apt update && sudo apt install -y ansible
+      - name: Run Ansible (app deploy)
+        run: |
+          ansible-playbook -i infra/ansible/inventory.ini infra/ansible/playbook.yml --tags k8s_deploy
+
+  monitoring:
+    needs: deploy-app
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+      - name: Install Ansible
+        run: sudo apt update && sudo apt install -y ansible
+      - name: Run Ansible (Prometheus)
+        run: |
+          ansible-playbook -i infra/ansible/inventory.ini infra/ansible/playbook.yml --tags prometheus
