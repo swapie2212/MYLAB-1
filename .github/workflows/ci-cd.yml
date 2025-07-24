@@ -99,6 +99,12 @@ jobs:
           name: ansible-inventory
           path: infra/ansible/inventory.ini
 
+      - name: Upload PEM file
+        uses: actions/upload-artifact@v4
+        with:
+          name: ec2-key
+          path: infra/terraform/ec2-instance.pem
+
   install-k8s:
     name: Setup Minikube & kubectl
     needs: setup-node
@@ -113,6 +119,15 @@ jobs:
           name: ansible-inventory
           path: infra/ansible
 
+      - name: Download PEM file
+        uses: actions/download-artifact@v4
+        with:
+          name: ec2-key
+          path: infra/terraform
+
+      - name: Set permissions on PEM file
+        run: chmod 600 infra/terraform/ec2-instance.pem
+
       - name: Install Ansible
         run: sudo apt update && sudo apt install -y ansible
 
@@ -121,9 +136,6 @@ jobs:
         with:
           path: ~/.ansible/roles
           key: ansible-roles-${{ runner.os }}
-
-      - name: Debug Inventory
-        run: cat infra/ansible/inventory.ini
 
       - name: Run Ansible (kubectl & minikube)
         run: ansible-playbook -i infra/ansible/inventory.ini infra/ansible/playbook.yml --tags kubectl,minikube
@@ -142,6 +154,15 @@ jobs:
           name: ansible-inventory
           path: infra/ansible
 
+      - name: Download PEM file
+        uses: actions/download-artifact@v4
+        with:
+          name: ec2-key
+          path: infra/terraform
+
+      - name: Set permissions on PEM file
+        run: chmod 600 infra/terraform/ec2-instance.pem
+
       - name: Install Ansible
         run: sudo apt update && sudo apt install -y ansible
 
@@ -150,9 +171,6 @@ jobs:
         with:
           path: ~/.ansible/roles
           key: ansible-roles-${{ runner.os }}
-
-      - name: Debug Inventory
-        run: cat infra/ansible/inventory.ini
 
       - name: Run Ansible (app deploy)
         run: ansible-playbook -i infra/ansible/inventory.ini infra/ansible/playbook.yml --tags k8s_deploy
@@ -171,6 +189,15 @@ jobs:
           name: ansible-inventory
           path: infra/ansible
 
+      - name: Download PEM file
+        uses: actions/download-artifact@v4
+        with:
+          name: ec2-key
+          path: infra/terraform
+
+      - name: Set permissions on PEM file
+        run: chmod 600 infra/terraform/ec2-instance.pem
+
       - name: Install Ansible
         run: sudo apt update && sudo apt install -y ansible
 
@@ -179,9 +206,6 @@ jobs:
         with:
           path: ~/.ansible/roles
           key: ansible-roles-${{ runner.os }}
-
-      - name: Debug Inventory
-        run: cat infra/ansible/inventory.ini
 
       - name: Run Ansible (Prometheus)
         run: ansible-playbook -i infra/ansible/inventory.ini infra/ansible/playbook.yml --tags prometheus
