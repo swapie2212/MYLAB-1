@@ -14,6 +14,20 @@
     group: ubuntu
     mode: '0644'
 
+- name: Wait for Kubernetes API to be ready
+  shell: |
+    for i in {1..10}; do
+      if KUBECONFIG=/home/ubuntu/.kube/config kubectl version --short; then
+        echo "API is ready!"
+        exit 0
+      fi
+      echo "Waiting for Kubernetes API..."
+      sleep 10
+    done
+    echo "Kubernetes API not ready after waiting!"
+    exit 1
+  changed_when: false
+
 - name: Apply Backend Deployment
   shell: KUBECONFIG=/home/ubuntu/.kube/config kubectl apply -f /home/ubuntu/app/backend-deployment.yaml
   args:
