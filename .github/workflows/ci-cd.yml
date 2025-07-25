@@ -208,10 +208,15 @@ jobs:
 
       - name: Apply Prometheus Kubernetes manifests
         run: |
-          for file in MYLAB-1/k8s/prometheus-*.yaml; do
-            echo "Applying $file"
-            kubectl apply -f "$file"
+          for file in ./k8s/prometheus-*.yml ./k8s/prometheus-*.yaml; do
+            if [ -f "$file" ]; then
+              echo "Applying $file"
+              kubectl apply -f "$file"
+            else
+              echo "❌ No Prometheus manifest found: $file"
+            fi
           done
+        working-directory: MYLAB-1  
       
       - name: Cache Ansible Roles
         uses: actions/cache@v3
