@@ -207,7 +207,11 @@ jobs:
           sudo mv kubectl /usr/local/bin/
 
       - name: Apply Prometheus Kubernetes manifests
-        run: kubectl apply -f MYLAB-1/k8s/prometheus-*.yaml
+        run: |
+          for file in MYLAB-1/k8s/prometheus-*.yaml; do
+            echo "Applying $file"
+            kubectl apply -f "$file"
+          done
       
       - name: Cache Ansible Roles
         uses: actions/cache@v3
