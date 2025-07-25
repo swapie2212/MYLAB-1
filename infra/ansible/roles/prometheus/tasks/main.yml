@@ -31,13 +31,3 @@
   copy:
     src: ../../../../prometheus/prometheus.yml
     dest: /etc/prometheus/prometheus.yml
-
-- name: Run Prometheus container
-  shell: |
-    docker rm -f prometheus-server || true
-    docker run -d \
-      -p 9090:9090 \
-      -v /etc/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml \
-      --name prometheus-server prom/prometheus
-  args:
-    executable: /bin/bash
