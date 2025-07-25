@@ -198,16 +198,24 @@ jobs:
       - name: Set permissions on PEM file
         run: chmod 600 infra/terraform/ec2-instance.pem
 
-      - name: Install Ansible
-        run: sudo apt update && sudo apt install -y ansible
+      - name: Install Ansible & kubectl
+        run: |
+          sudo apt update
+          sudo apt install -y ansible curl
+          curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+          chmod +x kubectl
+          sudo mv kubectl /usr/local/bin/
 
+      - name: Apply Prometheus Kubernetes manifests
+        run: kubectl apply -f MYLAB-1/k8s/prometheus-*.yaml
+      
       - name: Cache Ansible Roles
         uses: actions/cache@v3
         with:
           path: ~/.ansible/roles
           key: ansible-roles-${{ runner.os }}
 
-      - name: Run Ansible (Prometheus)
+      - name: Run Ansible Prometheus Config
         run: ansible-playbook -i infra/ansible/inventory.ini infra/ansible/playbook.yml --tags prometheus
 
   cleanup:
