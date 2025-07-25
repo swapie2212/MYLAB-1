@@ -1,3 +1,12 @@
+- name: Ensure .kube directory exists for ubuntu user
+  become: true
+  file:
+    path: /home/ubuntu/.kube
+    state: directory
+    owner: ubuntu
+    group: ubuntu
+    mode: '0700'
+
 - name: Copy Minikube kubeconfig from root to ubuntu user
   become: true
   copy:
@@ -10,11 +19,9 @@
 
 - name: Copy Minikube certs to ubuntu home
   become: true
-  synchronize:
-    src: /root/.minikube/
-    dest: /home/ubuntu/.minikube/
-    recursive: yes
-  delegate_to: localhost
+  shell: cp -r /root/.minikube /home/ubuntu/ && chown -R ubuntu:ubuntu /home/ubuntu/.minikube
+  args:
+    executable: /bin/bash
 
 - name: Fix permissions for Minikube files
   become: true
