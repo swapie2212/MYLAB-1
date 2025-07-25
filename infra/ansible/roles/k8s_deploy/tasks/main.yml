@@ -6,6 +6,7 @@
     owner: ubuntu
     group: ubuntu
     mode: '0600'
+    remote_src: true
 
 - name: Copy Minikube certs to ubuntu home
   become: true
