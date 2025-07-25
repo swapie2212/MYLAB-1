@@ -1,3 +1,4 @@
+---
 - name: Install conntrack (required by Kubernetes)
   apt:
     name: conntrack
@@ -128,8 +129,26 @@
     dest: /usr/local/bin/minikube
     mode: '0755'
 
-- name: Verify minikube installation
-  command: minikube version
+- name: Ensure minikube is executable
+  file:
+    path: /usr/local/bin/minikube
+    mode: '0755'
+    state: file
+
+- name: Download kubectl binary
+  get_url:
+    url: https://dl.k8s.io/release/v1.29.0/bin/linux/amd64/kubectl
+    dest: /usr/local/bin/kubectl
+    mode: '0755'
+
+- name: Ensure kubectl is executable
+  file:
+    path: /usr/local/bin/kubectl
+    mode: '0755'
+    state: file
+
+- name: Verify kubectl version
+  command: kubectl version --client
 
 - name: Start Minikube with none driver
   shell: |
