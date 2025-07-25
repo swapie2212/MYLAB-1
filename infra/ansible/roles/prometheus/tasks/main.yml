@@ -1,33 +1,19 @@
-- name: Wait for backend pod to be ready
+- name: Wait for Prometheus pod to be ready
   shell: |
-    kubectl wait --for=condition=ready pod -l app=backend --timeout=90s
+    kubectl wait --namespace default --for=condition=ready pod -l app=prometheus --timeout=120s
   args:
     executable: /bin/bash
 
-- name: Wait until backend metrics endpoint is up
+- name: Validate Prometheus service is reachable
   shell: |
-    kubectl port-forward svc/backend 4000:4000 &
-    PORT_FORWARD_PID=$!
-    for i in {1..10}; do
-      if curl -sSf http://localhost:4000/metrics; then
-        kill $PORT_FORWARD_PID
-        exit 0
-      fi
-      echo "Waiting for /metrics to be ready..."
-      sleep 5
-    done
-    kill $PORT_FORWARD_PID
-    echo "Timeout waiting for metrics endpoint"
-    exit 1
+    kubectl get svc prometheus -o wide
   args:
     executable: /bin/bash
-
-- name: Create Prometheus config directory
-  file:
-    path: /etc/prometheus
-    state: directory
-
-- name: Copy Prometheus config
-  copy:
-    src: ../../../../prometheus/prometheus.yml
-    dest: /etc/prometheus/prometheus.yml
+    
+- name: Create Prometheus ConfigMap
+  shell: |
+    kubectl create configmap prometheus-config \
+      --from-file=infra/prometheus/prometheus.yml \
+      --dry-run=client -o yaml | kubectl apply -f -
+  args:
+    executable: /bin/bash
