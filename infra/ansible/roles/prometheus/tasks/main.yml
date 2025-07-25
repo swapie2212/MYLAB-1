@@ -1,16 +1,29 @@
+- name: Check if Prometheus is already deployed
+  shell: |
+    kubectl get pods -l app=prometheus --no-headers | grep Running || true
+  register: prometheus_status
+  changed_when: false
+  failed_when: false
+  args:
+    executable: /bin/bash
+
 - name: Copy Prometheus config file to EC2
   copy:
-    src: infra/prometheus/prometheus.yml
+    src: prometheus.yml
     dest: /home/ubuntu/app/prometheus.yml
     owner: ubuntu
     group: ubuntu
     mode: '0644'
+  when: prometheus_status.stdout == ""
 
 - name: Create Prometheus ConfigMap
   shell: |
     kubectl create configmap prometheus-config \
       --from-file=/home/ubuntu/app/prometheus.yml \
       --dry-run=client -o yaml | kubectl apply -f -
+  args:
+    executable: /bin/bash
+  when: prometheus_status.stdout == ""
 
 - name: Apply Prometheus manifests
   become: yes
@@ -23,15 +36,18 @@
     done
   args:
     executable: /bin/bash
+  when: prometheus_status.stdout == ""
 
 - name: Wait for Prometheus pod to be ready
   shell: |
     kubectl wait --namespace default --for=condition=ready pod -l app=prometheus --timeout=120s
   args:
     executable: /bin/bash
+  when: prometheus_status.stdout == ""
 
 - name: Validate Prometheus service is reachable
   shell: |
     kubectl get svc prometheus -o wide
   args:
     executable: /bin/bash
+  when: prometheus_status.stdout == ""
