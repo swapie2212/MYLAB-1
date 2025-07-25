@@ -1,3 +1,11 @@
+- name: Copy Prometheus config file to EC2
+  copy:
+    src: ../../../../../infra/prometheus/prometheus.yml
+    dest: /home/ubuntu/app/prometheus.yml
+    owner: ubuntu
+    group: ubuntu
+    mode: '0644'
+    
 - name: Create Prometheus ConfigMap
   shell: |
     kubectl create configmap prometheus-config \
