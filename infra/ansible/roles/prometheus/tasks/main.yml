@@ -17,3 +17,16 @@
       --dry-run=client -o yaml | kubectl apply -f -
   args:
     executable: /bin/bash
+
+- name: Apply Prometheus manifests
+  become: yes
+  shell: |
+    for file in /home/ubuntu/app/prometheus-*.yaml /home/ubuntu/app/prometheus-*.yml; do
+      if [ -f "$file" ]; then
+        echo "Applying $file"
+        kubectl apply -f "$file"
+      fi
+    done
+  args:
+    executable: /bin/bash
+
