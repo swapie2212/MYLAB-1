@@ -1,15 +1,3 @@
-- name: Wait for Prometheus pod to be ready
-  shell: |
-    kubectl wait --namespace default --for=condition=ready pod -l app=prometheus --timeout=120s
-  args:
-    executable: /bin/bash
-
-- name: Validate Prometheus service is reachable
-  shell: |
-    kubectl get svc prometheus -o wide
-  args:
-    executable: /bin/bash
-    
 - name: Create Prometheus ConfigMap
   shell: |
     kubectl create configmap prometheus-config \
@@ -30,3 +18,14 @@
   args:
     executable: /bin/bash
 
+- name: Wait for Prometheus pod to be ready
+  shell: |
+    kubectl wait --namespace default --for=condition=ready pod -l app=prometheus --timeout=120s
+  args:
+    executable: /bin/bash
+
+- name: Validate Prometheus service is reachable
+  shell: |
+    kubectl get svc prometheus -o wide
+  args:
+    executable: /bin/bash
