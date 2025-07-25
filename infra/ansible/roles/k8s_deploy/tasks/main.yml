@@ -17,7 +17,7 @@
 - name: Wait for Kubernetes API to be ready
   shell: |
     for i in {1..10}; do
-      if KUBECONFIG=/home/ubuntu/.kube/config kubectl version --short; then
+      if KUBECONFIG=/home/ubuntu/.kube/config kubectl version; then
         echo "API is ready!"
         exit 0
       fi
