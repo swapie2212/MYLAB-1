@@ -1,3 +1,30 @@
+- name: Copy Minikube kubeconfig from root to ubuntu user
+  become: true
+  copy:
+    src: /root/.kube/config
+    dest: /home/ubuntu/.kube/config
+    owner: ubuntu
+    group: ubuntu
+    mode: '0600'
+
+- name: Copy Minikube certs to ubuntu home
+  become: true
+  synchronize:
+    src: /root/.minikube/
+    dest: /home/ubuntu/.minikube/
+    recursive: yes
+  delegate_to: localhost
+
+- name: Fix permissions for Minikube files
+  become: true
+  file:
+    path: /home/ubuntu/.minikube
+    state: directory
+    recurse: yes
+    owner: ubuntu
+    group: ubuntu
+    mode: '0700'
+
 - name: Create app folder to store deployment files
   file:
     path: /home/ubuntu/app
@@ -17,7 +44,7 @@
 - name: Wait for Kubernetes API to be ready
   shell: |
     for i in {1..10}; do
-      if KUBECONFIG=/home/ubuntu/.kube/config kubectl version; then
+      if KUBECONFIG=/home/ubuntu/.kube/config kubectl get nodes; then
         echo "API is ready!"
         exit 0
       fi
@@ -51,5 +78,3 @@
 - name: Show pods
   debug:
     var: pod_output.stdout
-
-
