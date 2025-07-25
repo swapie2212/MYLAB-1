@@ -15,16 +15,27 @@
     mode: '0644'
 
 - name: Apply Backend Deployment
-  shell: kubectl apply -f /home/ubuntu/app/backend-deployment.yaml
+  shell: KUBECONFIG=/home/ubuntu/.kube/config kubectl apply -f /home/ubuntu/app/backend-deployment.yaml
   args:
     executable: /bin/bash
 
 - name: Apply Frontend Deployment
-  shell: kubectl apply -f /home/ubuntu/app/frontend-deployment.yaml
+  shell: KUBECONFIG=/home/ubuntu/.kube/config kubectl apply -f /home/ubuntu/app/frontend-deployment.yaml
   args:
     executable: /bin/bash
 
 - name: Apply Service Config
-  shell: kubectl apply -f /home/ubuntu/app/service.yaml
+  shell: KUBECONFIG=/home/ubuntu/.kube/config kubectl apply -f /home/ubuntu/app/service.yaml
   args:
     executable: /bin/bash
+
+- name: Verify pods are running
+  shell: KUBECONFIG=/home/ubuntu/.kube/config kubectl get pods -o wide
+  register: pod_output
+  changed_when: false
+
+- name: Show pods
+  debug:
+    var: pod_output.stdout
+
+
