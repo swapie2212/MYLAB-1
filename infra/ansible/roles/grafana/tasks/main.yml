@@ -1,0 +1,19 @@
+- name: Create monitoring namespace if not exists
+  shell: kubectl get ns monitoring || kubectl create ns monitoring
+  args:
+    executable: /bin/bash
+
+- name: Copy Grafana deployment YAML from repo
+  copy:
+    src: ../../../../../k8s/grafana-deployment.yaml
+    dest: /home/ubuntu/app/grafana-deployment.yaml
+    owner: ubuntu
+    group: ubuntu
+    mode: '0644'
+
+- name: Apply Grafana deployment
+  shell: |
+    KUBECONFIG=/home/ubuntu/.kube/config \
+    kubectl apply -f /home/ubuntu/app/grafana-deployment.yaml -n monitoring
+  args:
+    executable: /bin/bash

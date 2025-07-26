@@ -3,17 +3,25 @@ name: Node DevOps CI/CD
 on:
   push:
     branches:
-      - devops
+      - feature
+  workflow_dispatch:
 
 jobs:
+
   provision-infra:
+    name: Provision EC2 Infra
     runs-on: ubuntu-latest
     outputs:
       instance_ip: ${{ steps.get_ip.outputs.instance_ip }}
-
     steps:
       - name: Checkout
         uses: actions/checkout@v3
+
+      - name: Cache Terraform plugins
+        uses: actions/cache@v3
+        with:
+          path: ~/.terraform.d/plugin-cache
+          key: terraform-plugins-${{ runner.os }}
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
@@ -22,15 +30,15 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ secrets.AWS_REGION }}
 
-      - name: Install Terraform
-        run: |
-          sudo apt-get update && sudo apt-get install -y gnupg software-properties-common curl
-          curl -fsSL https://apt.releases.hashicorp.com/gpg | sudo gpg --dearmor -o /usr/share/keyrings/hashicorp-archive-keyring.gpg
-          echo "deb [signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] https://apt.releases.hashicorp.com $(lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/hashicorp.list
-          sudo apt-get update && sudo apt-get install terraform -y
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.7.5
 
       - name: Terraform Init & Apply
         run: |
+          mkdir -p ~/.terraform.d/plugin-cache
+          echo '{"plugin_cache_dir": "$HOME/.terraform.d/plugin-cache"}' > ~/.terraformrc
           terraform init
           terraform apply -auto-approve
         working-directory: infra/terraform
@@ -39,23 +47,18 @@ jobs:
 
       - name: Get EC2 Public IP
         id: get_ip
-        working-directory: infra/terraform  
+        working-directory: infra/terraform
         run: |
-          set -e
-          echo "Using Terraform binary at: $(which terraform)"
-          terraform version
-          terraform_output=$(command terraform output -raw instance_ip 2>/dev/null || echo "")
-          terraform_output=$(echo "$terraform_output" | tr -d '"[:space:]')
-          echo "Sanitized IP: '$terraform_output'"
-          if [[ "$terraform_output" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-            echo "instance_ip=$terraform_output" >> $GITHUB_OUTPUT
-          else
-            echo "Invalid IP or Terraform output failed. Skipping export."
+          terraform_output=$(terraform output -raw instance_ip || echo '')
+          echo "Fetched instance_ip: $terraform_output"
+          if [[ -z "$terraform_output" ]]; then
+            echo "❌ No instance_ip found. Failing the job."
             exit 1
           fi
-          
+          echo "instance_ip=$(echo $terraform_output | tr -d '[:space:]')" >> $GITHUB_OUTPUT
 
-  configure-node:
+  setup-node:
+    name: Bootstrap Node with Docker
     needs: provision-infra
     runs-on: ubuntu-latest
     steps:
@@ -67,17 +70,187 @@ jobs:
           mkdir -p infra/terraform
           echo "${{ secrets.EC2_PRIVATE_KEY }}" > infra/terraform/ec2-instance.pem
           chmod 600 infra/terraform/ec2-instance.pem
+          echo "PEM_ABS_PATH=$(realpath infra/terraform/ec2-instance.pem)" >> $GITHUB_ENV
 
-      - name: Generate Ansible Inventory with EC2 IP
+      - name: Generate Ansible Inventory
         run: |
+          mkdir -p infra/ansible
           echo "[devops_node]" > infra/ansible/inventory.ini
-          echo "${{ needs.provision-infra.outputs.instance_ip }} ansible_user=ubuntu ansible_ssh_private_key_file=infra/terraform/ec2-instance.pem ansible_ssh_common_args='-o StrictHostKeyChecking=no'" >> infra/ansible/inventory.ini
+          echo "${{ needs.provision-infra.outputs.instance_ip }} ansible_user=ubuntu ansible_ssh_private_key_file=${{ env.PEM_ABS_PATH }} ansible_ssh_common_args='-o StrictHostKeyChecking=no'" >> infra/ansible/inventory.ini
 
       - name: Install Ansible
+        run: sudo apt update && sudo apt install -y ansible
+
+      - name: Cache Ansible Roles
+        uses: actions/cache@v3
+        with:
+          path: ~/.ansible/roles
+          key: ansible-roles-${{ runner.os }}
+
+      - name: Debug Inventory
+        run: cat infra/ansible/inventory.ini
+
+      - name: Run Ansible Playbook (Docker only)
+        run: ansible-playbook -i infra/ansible/inventory.ini infra/ansible/playbook.yml --tags docker
+
+      - name: Upload Ansible Inventory
+        uses: actions/upload-artifact@v4
+        with:
+          name: ansible-inventory
+          path: infra/ansible/inventory.ini
+
+      - name: Upload PEM file
+        uses: actions/upload-artifact@v4
+        with:
+          name: ec2-key
+          path: infra/terraform/ec2-instance.pem
+
+  install-k8s:
+    name: Setup Minikube & kubectl
+    needs: setup-node
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Download Ansible Inventory
+        uses: actions/download-artifact@v4
+        with:
+          name: ansible-inventory
+          path: infra/ansible
+
+      - name: Download PEM file
+        uses: actions/download-artifact@v4
+        with:
+          name: ec2-key
+          path: infra/terraform
+
+      - name: Set permissions on PEM file
+        run: chmod 600 infra/terraform/ec2-instance.pem
+
+      - name: Install Ansible
+        run: sudo apt update && sudo apt install -y ansible
+
+      - name: Cache Ansible Roles
+        uses: actions/cache@v3
+        with:
+          path: ~/.ansible/roles
+          key: ansible-roles-${{ runner.os }}
+
+      - name: Run Ansible (kubectl & minikube)
+        run: ansible-playbook -i infra/ansible/inventory.ini infra/ansible/playbook.yml --tags kubectl,minikube
+
+  deploy-app:
+    name: Deploy App to Kubernetes
+    needs: install-k8s
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Download Ansible Inventory
+        uses: actions/download-artifact@v4
+        with:
+          name: ansible-inventory
+          path: infra/ansible
+
+      - name: Download PEM file
+        uses: actions/download-artifact@v4
+        with:
+          name: ec2-key
+          path: infra/terraform
+
+      - name: Set permissions on PEM file
+        run: chmod 600 infra/terraform/ec2-instance.pem
+
+      - name: Install Ansible
+        run: sudo apt update && sudo apt install -y ansible
+
+      - name: Cache Ansible Roles
+        uses: actions/cache@v3
+        with:
+          path: ~/.ansible/roles
+          key: ansible-roles-${{ runner.os }}
+
+      - name: Run Ansible (app deploy)
+        run: ansible-playbook -i infra/ansible/inventory.ini infra/ansible/playbook.yml --tags k8s_deploy
+
+  monitoring:
+    name: Setup Monitoring (Prometheus)
+    needs: deploy-app
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Download Ansible Inventory
+        uses: actions/download-artifact@v4
+        with:
+          name: ansible-inventory
+          path: infra/ansible
+
+      - name: Download PEM file
+        uses: actions/download-artifact@v4
+        with:
+          name: ec2-key
+          path: infra/terraform
+
+      - name: Set permissions on PEM file
+        run: chmod 600 infra/terraform/ec2-instance.pem
+
+      - name: Install Ansible & kubectl
         run: |
           sudo apt update
-          sudo apt install -y ansible
-      
-      - name: Run Ansible Playbook
+          sudo apt install -y ansible curl
+          curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+          chmod +x kubectl
+          sudo mv kubectl /usr/local/bin/
+   
+      - name: Cache Ansible Roles
+        uses: actions/cache@v3
+        with:
+          path: ~/.ansible/roles
+          key: ansible-roles-${{ runner.os }}
+
+      - name: Run Ansible Prometheus Config
+        run: ansible-playbook -i infra/ansible/inventory.ini infra/ansible/playbook.yml --tags prometheus
+  
+  grafana:
+    name: Setup Monitoring (Grafana)
+    needs: monitoring
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Download Ansible Inventory
+        uses: actions/download-artifact@v4
+        with:
+          name: ansible-inventory
+          path: infra/ansible
+
+      - name: Download PEM file
+        uses: actions/download-artifact@v4
+        with:
+          name: ec2-key
+          path: infra/terraform
+
+      - name: Set permissions on PEM file
+        run: chmod 600 infra/terraform/ec2-instance.pem
+
+      - name: Install Ansible & kubectl
         run: |
-          ansible-playbook -i infra/ansible/inventory.ini infra/ansible/playbook.yml
+          sudo apt update
+          sudo apt install -y ansible curl
+          curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+          chmod +x kubectl
+          sudo mv kubectl /usr/local/bin/
+
+      - name: Cache Ansible Roles
+        uses: actions/cache@v3
+        with:
+          path: ~/.ansible/roles
+          key: ansible-roles-${{ runner.os }}
+
+      - name: Run Ansible Grafana Config
+        run: ansible-playbook -i infra/ansible/inventory.ini infra/ansible/playbook.yml --tags grafana

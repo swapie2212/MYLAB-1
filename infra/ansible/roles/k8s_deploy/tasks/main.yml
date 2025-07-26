@@ -1,3 +1,38 @@
+- name: Ensure .kube directory exists for ubuntu user
+  become: true
+  file:
+    path: /home/ubuntu/.kube
+    state: directory
+    owner: ubuntu
+    group: ubuntu
+    mode: '0700'
+
+- name: Copy Minikube kubeconfig from root to ubuntu user
+  become: true
+  copy:
+    src: /root/.kube/config
+    dest: /home/ubuntu/.kube/config
+    owner: ubuntu
+    group: ubuntu
+    mode: '0600'
+    remote_src: true
+
+- name: Copy Minikube certs to ubuntu home
+  become: true
+  shell: cp -r /root/.minikube /home/ubuntu/ && chown -R ubuntu:ubuntu /home/ubuntu/.minikube
+  args:
+    executable: /bin/bash
+
+- name: Fix permissions for Minikube files
+  become: true
+  file:
+    path: /home/ubuntu/.minikube
+    state: directory
+    recurse: yes
+    owner: ubuntu
+    group: ubuntu
+    mode: '0700'
+
 - name: Create app folder to store deployment files
   file:
     path: /home/ubuntu/app
@@ -14,17 +49,40 @@
     group: ubuntu
     mode: '0644'
 
+- name: Wait for Kubernetes API to be ready
+  shell: |
+    for i in {1..10}; do
+      if KUBECONFIG=/home/ubuntu/.kube/config kubectl get nodes; then
+        echo "API is ready!"
+        exit 0
+      fi
+      echo "Waiting for Kubernetes API..."
+      sleep 10
+    done
+    echo "Kubernetes API not ready after waiting!"
+    exit 1
+  changed_when: false
+
 - name: Apply Backend Deployment
-  shell: kubectl apply -f /home/ubuntu/app/backend-deployment.yaml
+  shell: KUBECONFIG=/home/ubuntu/.kube/config kubectl apply -f /home/ubuntu/app/backend-deployment.yaml
   args:
     executable: /bin/bash
 
 - name: Apply Frontend Deployment
-  shell: kubectl apply -f /home/ubuntu/app/frontend-deployment.yaml
+  shell: KUBECONFIG=/home/ubuntu/.kube/config kubectl apply -f /home/ubuntu/app/frontend-deployment.yaml
   args:
     executable: /bin/bash
 
 - name: Apply Service Config
-  shell: kubectl apply -f /home/ubuntu/app/service.yaml
+  shell: KUBECONFIG=/home/ubuntu/.kube/config kubectl apply -f /home/ubuntu/app/service.yaml
   args:
     executable: /bin/bash
+
+- name: Verify pods are running
+  shell: KUBECONFIG=/home/ubuntu/.kube/config kubectl get pods -o wide
+  register: pod_output
+  changed_when: false
+
+- name: Show pods
+  debug:
+    var: pod_output.stdout

@@ -1,4 +1,13 @@
-- name: Install kubectl via Snap
-  snap:
-    name: kubectl
-    classic: yes
+- name: Download kubectl binary
+  get_url:
+    url: https://dl.k8s.io/release/v1.29.0/bin/linux/amd64/kubectl
+    dest: /usr/local/bin/kubectl
+    mode: '0755'
+  become: true
+
+- name: Ensure kubectl is executable
+  file:
+    path: /usr/local/bin/kubectl
+    mode: '0755'
+    state: file
+  become: true

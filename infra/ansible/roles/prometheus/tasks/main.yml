@@ -1,43 +1,53 @@
-- name: Wait for backend pod to be ready
+- name: Check if Prometheus is already deployed
   shell: |
-    kubectl wait --for=condition=ready pod -l app=backend --timeout=90s
+    kubectl get pods -l app=prometheus --no-headers | grep Running || true
+  register: prometheus_status
+  changed_when: false
+  failed_when: false
   args:
     executable: /bin/bash
 
-- name: Wait until backend metrics endpoint is up
-  shell: |
-    kubectl port-forward svc/backend 4000:4000 &
-    PORT_FORWARD_PID=$!
-    for i in {1..10}; do
-      if curl -sSf http://localhost:4000/metrics; then
-        kill $PORT_FORWARD_PID
-        exit 0
-      fi
-      echo "Waiting for /metrics to be ready..."
-      sleep 5
-    done
-    kill $PORT_FORWARD_PID
-    echo "Timeout waiting for metrics endpoint"
-    exit 1
-  args:
-    executable: /bin/bash
-
-- name: Create Prometheus config directory
-  file:
-    path: /etc/prometheus
-    state: directory
-
-- name: Copy Prometheus config
+- name: Copy Prometheus config file to EC2
   copy:
-    src: ../../../../prometheus/prometheus.yml
-    dest: /etc/prometheus/prometheus.yml
+    src: prometheus.yml
+    dest: /home/ubuntu/app/prometheus.yml
+    owner: ubuntu
+    group: ubuntu
+    mode: '0644'
+  when: prometheus_status.stdout == ""
 
-- name: Run Prometheus container
+- name: Create Prometheus ConfigMap
   shell: |
-    docker rm -f prometheus-server || true
-    docker run -d \
-      -p 9090:9090 \
-      -v /etc/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml \
-      --name prometheus-server prom/prometheus
+    kubectl create configmap prometheus-config \
+      --from-file=/home/ubuntu/app/prometheus.yml \
+      --dry-run=client -o yaml | kubectl apply -f -
   args:
     executable: /bin/bash
+  when: prometheus_status.stdout == ""
+
+- name: Apply Prometheus manifests
+  become: yes
+  shell: |
+    for file in /home/ubuntu/app/prometheus-*.yaml /home/ubuntu/app/prometheus-*.yml; do
+      if [ -f "$file" ]; then
+        echo "Applying $file"
+        kubectl apply -f "$file"
+      fi
+    done
+  args:
+    executable: /bin/bash
+  when: prometheus_status.stdout == ""
+
+- name: Wait for Prometheus pod to be ready
+  shell: |
+    kubectl wait --namespace default --for=condition=ready pod -l app=prometheus --timeout=120s
+  args:
+    executable: /bin/bash
+  when: prometheus_status.stdout == ""
+
+- name: Validate Prometheus service is reachable
+  shell: |
+    kubectl get svc prometheus-service -o wide
+  args:
+    executable: /bin/bash
+  when: prometheus_status.stdout == ""
