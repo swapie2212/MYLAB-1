@@ -214,6 +214,46 @@ jobs:
 
       - name: Run Ansible Prometheus Config
         run: ansible-playbook -i infra/ansible/inventory.ini infra/ansible/playbook.yml --tags prometheus
+  
+  grafana:
+    name: Setup Monitoring (Grafana)
+    needs: monitoring
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Download Ansible Inventory
+        uses: actions/download-artifact@v4
+        with:
+          name: ansible-inventory
+          path: infra/ansible
+
+      - name: Download PEM file
+        uses: actions/download-artifact@v4
+        with:
+          name: ec2-key
+          path: infra/terraform
+
+      - name: Set permissions on PEM file
+        run: chmod 600 infra/terraform/ec2-instance.pem
+
+      - name: Install Ansible & kubectl
+        run: |
+          sudo apt update
+          sudo apt install -y ansible curl
+          curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+          chmod +x kubectl
+          sudo mv kubectl /usr/local/bin/
+
+      - name: Cache Ansible Roles
+        uses: actions/cache@v3
+        with:
+          path: ~/.ansible/roles
+          key: ansible-roles-${{ runner.os }}
+
+      - name: Run Ansible Grafana Config
+        run: ansible-playbook -i infra/ansible/inventory.ini infra/ansible/playbook.yml --tags grafana
 
   cleanup:
     name: Destroy Infrastructure

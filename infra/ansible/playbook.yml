@@ -7,3 +7,4 @@
     - { role: minikube, tags: ['minikube', 'k8s_deploy', 'k8s_setup'] }
     - { role: k8s_deploy, tags: ['k8s_deploy'] }
     - { role: prometheus, tags: ['prometheus'] }
+    - { role: grafana, tags: ['grafana']}
