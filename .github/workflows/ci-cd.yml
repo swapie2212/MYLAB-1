@@ -3,7 +3,7 @@ name: Node DevOps CI/CD
 on:
   push:
     branches:
-      - optimize
+      - sandbox
   workflow_dispatch:
 
 jobs:
