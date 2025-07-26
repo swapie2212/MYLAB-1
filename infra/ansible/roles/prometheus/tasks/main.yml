@@ -47,7 +47,7 @@
 
 - name: Validate Prometheus service is reachable
   shell: |
-    kubectl get svc prometheus -o wide
+    kubectl get svc prometheus-service -o wide
   args:
     executable: /bin/bash
   when: prometheus_status.stdout == ""
