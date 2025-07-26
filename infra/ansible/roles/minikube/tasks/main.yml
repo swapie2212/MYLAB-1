@@ -1,4 +1,13 @@
----
+- name: Check if Minikube is already installed
+  command: which minikube
+  register: minikube_check
+  ignore_errors: true
+
+- name: Check if kubectl is already installed
+  command: which kubectl
+  register: kubectl_check
+  ignore_errors: true
+
 - name: Install conntrack (required by Kubernetes)
   apt:
     name: conntrack
@@ -15,18 +24,21 @@
   get_url:
     url: https://github.com/kubernetes-sigs/cri-tools/releases/download/v1.29.0/crictl-v1.29.0-linux-amd64.tar.gz
     dest: /tmp/crictl.tar.gz
+  when: minikube_check.rc != 0
 
 - name: Extract crictl binary
   unarchive:
     src: /tmp/crictl.tar.gz
     dest: /usr/local/bin/
     remote_src: yes
+  when: minikube_check.rc != 0
 
 - name: Set executable permissions for crictl
   file:
     path: /usr/local/bin/crictl
     mode: '0755'
     state: file
+  when: minikube_check.rc != 0
 
 - name: Install cri-dockerd dependencies
   apt:
@@ -37,12 +49,14 @@
       - cmake
     state: present
     update_cache: yes
+  when: minikube_check.rc != 0
 
 - name: Clone cri-dockerd source
   git:
     repo: https://github.com/Mirantis/cri-dockerd.git
     dest: /tmp/cri-dockerd
     version: "master"
+  when: minikube_check.rc != 0
 
 - name: Stop cri-docker services before overwriting binary
   shell: |
@@ -50,12 +64,14 @@
     systemctl stop cri-docker.socket || true
   ignore_errors: yes
   become: yes
+  when: minikube_check.rc != 0
 
 - name: Remove existing cri-dockerd binary if exists
   file:
     path: /usr/local/bin/cri-dockerd
     state: absent
   become: yes
+  when: minikube_check.rc != 0
 
 - name: Build cri-dockerd binary
   shell: |
@@ -65,6 +81,7 @@
   args:
     executable: /bin/bash
   become: yes
+  when: minikube_check.rc != 0
 
 - name: Symlink cri-dockerd to /usr/bin
   file:
@@ -72,6 +89,7 @@
     dest: /usr/bin/cri-dockerd
     state: link
   become: yes
+  when: minikube_check.rc != 0
 
 - name: Install cri-dockerd systemd services
   copy:
@@ -81,22 +99,26 @@
   loop:
     - cri-docker.service
     - cri-docker.socket
+  when: minikube_check.rc != 0
 
 - name: Reload systemd daemon
   systemd:
     daemon_reload: yes
+  when: minikube_check.rc != 0
 
 - name: Enable and start cri-docker service
   systemd:
     name: cri-docker.service
     enabled: yes
     state: started
+  when: minikube_check.rc != 0
 
 - name: Enable and start cri-docker socket
   systemd:
     name: cri-docker.socket
     enabled: yes
     state: started
+  when: minikube_check.rc != 0
 
 - name: Disable fs.protected_regular to allow Minikube lock file
   sysctl:
@@ -110,24 +132,28 @@
   get_url:
     url: https://github.com/containernetworking/plugins/releases/download/v1.4.0/cni-plugins-linux-amd64-v1.4.0.tgz
     dest: /tmp/cni-plugins.tgz
+  when: minikube_check.rc != 0
 
 - name: Create CNI plugin directory
   file:
     path: /opt/cni/bin
     state: directory
     mode: '0755'
+  when: minikube_check.rc != 0
 
 - name: Extract CNI plugins
   unarchive:
     src: /tmp/cni-plugins.tgz
     dest: /opt/cni/bin/
     remote_src: yes
+  when: minikube_check.rc != 0
 
 - name: Download minikube
   get_url:
     url: https://storage.googleapis.com/minikube/releases/latest/minikube-linux-amd64
     dest: /usr/local/bin/minikube
     mode: '0755'
+  when: minikube_check.rc != 0
 
 - name: Ensure minikube is executable
   file:
@@ -140,6 +166,7 @@
     url: https://dl.k8s.io/release/v1.29.0/bin/linux/amd64/kubectl
     dest: /usr/local/bin/kubectl
     mode: '0755'
+  when: kubectl_check.rc != 0
 
 - name: Ensure kubectl is executable
   file:
@@ -149,6 +176,7 @@
 
 - name: Verify kubectl version
   command: kubectl version --client
+  when: kubectl_check.rc == 0
 
 - name: Start Minikube with none driver
   shell: |
@@ -159,6 +187,7 @@
     PATH: "/usr/local/bin:{{ ansible_env.PATH }}"
   args:
     executable: /bin/bash
+  when: minikube_check.rc != 0
 
 - name: Wait for Kubernetes API to become available
   shell: |
